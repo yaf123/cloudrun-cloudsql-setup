@@ -6,7 +6,7 @@ variable "project_id" {
 variable "project_name" {
   description = "プロジェクト名（リソース名のプレフィックス）"
   type        = string
-  default     = "rubese"
+  default     = "myapp"
 }
 
 variable "env" {

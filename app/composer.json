@@ -1,6 +1,6 @@
 {
-    "name": "wakuwaku/rubese",
-    "description": "Rubese - Cloud Run modular monolith",
+    "name": "mycompany/myapp",
+    "description": "MyApp - Cloud Run modular monolith",
     "type": "project",
     "require": {
         "php": ">=8.2",

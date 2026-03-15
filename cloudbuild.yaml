@@ -7,7 +7,7 @@
 # 必要な置換変数（トリガー設定 or コマンドラインで指定）:
 #   _ENV          : dev or prod
 #   _REGION       : asia-northeast1
-#   _PROJECT_NAME : rubese
+#   _PROJECT_NAME : myapp
 # =============================================================================
 
 steps:
@@ -83,7 +83,7 @@ steps:
 substitutions:
   _ENV: dev
   _REGION: asia-northeast1
-  _PROJECT_NAME: rubese
+  _PROJECT_NAME: myapp
 
 options:
   logging: CLOUD_LOGGING_ONLY

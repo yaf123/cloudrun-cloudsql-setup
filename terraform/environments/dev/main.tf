@@ -10,7 +10,7 @@ terraform {
 
   # GCSバックエンド（bootstrap 実行後に有効化）
   # backend "gcs" {
-  #   bucket = "rubese-terraform-state"
+  #   bucket = "myapp-terraform-state"
   #   prefix = "cloudrun/dev"
   # }
 }

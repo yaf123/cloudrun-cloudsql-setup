@@ -562,7 +562,7 @@ RUN apk add --no-cache --virtual .build-deps \
 # ================================================================
 FROM php:8.2-fpm-alpine AS production
 
-LABEL maintainer="WAKUWAKU Inc."
+LABEL maintainer="MyCompany Inc."
 
 # ランタイムに必要なライブラリのみ（ヘッダファイル不要）
 RUN apk add --no-cache \
@@ -613,7 +613,7 @@ CMD ["php-fpm", "-F"]
 # docker/nginx/Dockerfile
 FROM nginx:1.27-alpine AS production
 
-LABEL maintainer="WAKUWAKU Inc."
+LABEL maintainer="MyCompany Inc."
 
 # 不要なデフォルト設定を削除
 RUN rm -f /etc/nginx/conf.d/default.conf \
@@ -809,8 +809,8 @@ services:
       APP_ENV: local
       DB_HOST: mysql
       DB_PORT: "3306"
-      DB_NAME: rubese
-      DB_USER: rubese-app
+      DB_NAME: myapp
+      DB_USER: myapp-app
       DB_PASSWORD: localpassword
       # OPcache のファイル変更チェックを有効化（開発用）
       PHP_OPCACHE_VALIDATE_TIMESTAMPS: "1"
@@ -830,8 +830,8 @@ services:
     image: mysql:8.0
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: rubese
-      MYSQL_USER: rubese-app
+      MYSQL_DATABASE: myapp
+      MYSQL_USER: myapp-app
       MYSQL_PASSWORD: localpassword
       TZ: Asia/Tokyo
     ports:
@@ -967,8 +967,8 @@ WSL2 でのファイルシステムパフォーマンス:
   ~/projects/ (Linux ファイルシステム) → 速い（ネイティブ ext4）
 
   bind mount のパフォーマンス比較:
-    /mnt/d/repos/rubese → コンテナ:  ~5x 遅い
-    ~/repos/rubese → コンテナ:        ネイティブ速度
+    /mnt/d/repos/myapp → コンテナ:  ~5x 遅い
+    ~/repos/myapp → コンテナ:        ネイティブ速度
 
 推奨:
   開発時のソースコードは WSL2 の Linux ファイルシステム側に配置する
@@ -1017,7 +1017,7 @@ docker compose logs -f nginx              # Nginx のログのみ
 docker compose exec php-fpm sh            # PHP-FPM コンテナに入る
 docker compose exec php-fpm composer install  # Composer 実行
 docker compose exec php-fpm php -v        # PHP バージョン確認
-docker compose exec mysql mysql -u root -prootpassword rubese  # MySQL接続
+docker compose exec mysql mysql -u root -prootpassword myapp  # MySQL接続
 
 # ---- ビルド ----
 docker compose build                      # 全イメージ再ビルド
@@ -1311,7 +1311,7 @@ Cloud Run のログ収集:
 
   Cloud Logging での絞り込み:
     resource.type = "cloud_run_revision"
-    resource.labels.service_name = "rubese-dev-app"
+    resource.labels.service_name = "myapp-dev-app"
     labels."run.googleapis.com/container_name" = "php-fpm"
 ```
 

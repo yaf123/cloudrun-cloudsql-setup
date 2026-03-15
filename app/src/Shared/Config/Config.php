@@ -26,8 +26,8 @@ class Config
         $this->appEnv     = $this->env('APP_ENV', 'local');
         $this->dbHost     = $this->env('DB_HOST', '127.0.0.1');
         $this->dbPort     = (int) $this->env('DB_PORT', '3306');
-        $this->dbName     = $this->env('DB_NAME', 'rubese');
-        $this->dbUser     = $this->env('DB_USER', 'rubese-app');
+        $this->dbName     = $this->env('DB_NAME', 'myapp');
+        $this->dbUser     = $this->env('DB_USER', 'myapp-user');
         $this->dbPassword = $this->env('DB_PASSWORD', '');
     }
 

@@ -54,7 +54,7 @@ if ($dbStatus['ok']) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rubese - Cloud Run Demo</title>
+    <title>MyApp - Cloud Run Demo</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; padding: 2rem; max-width: 800px; margin: 0 auto; }
@@ -79,7 +79,7 @@ if ($dbStatus['ok']) {
     </style>
 </head>
 <body>
-    <h1>Rubese - Cloud Run Demo</h1>
+    <h1>MyApp - Cloud Run Demo</h1>
 
     <!-- サーバー情報 -->
     <div class="card">
