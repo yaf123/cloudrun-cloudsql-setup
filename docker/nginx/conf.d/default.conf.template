@@ -1,0 +1,54 @@
+upstream php-fpm {
+    server ${PHP_FPM_HOST}:9000;
+    keepalive 16;
+}
+
+server {
+    listen 8080;
+    server_name _;
+
+    root /var/www/html/public;
+    index index.php index.html;
+
+    # ヘルスチェック（Nginx直接応答 → PHP-FPMに依存しない）
+    location = /health {
+        access_log off;
+        return 200 "OK\n";
+        add_header Content-Type text/plain;
+    }
+
+    # 静的ファイル（Nginx直接配信）
+    location ~* \.(css|js|jpg|jpeg|png|gif|ico|svg|woff2?|ttf|eot|webp)$ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+        try_files $uri =404;
+    }
+
+    # PHP リクエスト
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        try_files $uri =404;
+
+        fastcgi_pass php-fpm;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+
+        fastcgi_connect_timeout 5s;
+        fastcgi_send_timeout 30s;
+        fastcgi_read_timeout 60s;
+
+        fastcgi_buffer_size 32k;
+        fastcgi_buffers 16 32k;
+        fastcgi_busy_buffers_size 64k;
+        fastcgi_keep_conn on;
+    }
+
+    # 隠しファイル・srcディレクトリへのアクセス拒否
+    location ~ /\. { deny all; return 404; }
+    location ~ ^/src/ { deny all; return 404; }
+}

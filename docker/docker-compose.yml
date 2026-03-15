@@ -1,0 +1,94 @@
+# ============================================================
+# ローカル開発用 docker-compose
+#
+# 秘密情報は .env ファイルから読み込む（Git管理外）
+# 初回: cp .env.example .env して値を設定
+# ============================================================
+
+services:
+  # ----------------------------------------------------------
+  # Nginx (Webサーバー)
+  # ----------------------------------------------------------
+  nginx:
+    build:
+      context: ..
+      dockerfile: docker/nginx/Dockerfile
+    ports:
+      - "${NGINX_PORT:-8080}:8080"
+    environment:
+      PHP_FPM_HOST: php-fpm
+    volumes:
+      - ../app/public:/var/www/html/public:ro
+    depends_on:
+      php-fpm:
+        condition: service_started
+
+  # ----------------------------------------------------------
+  # PHP-FPM (アプリケーションサーバー)
+  # ----------------------------------------------------------
+  php-fpm:
+    build:
+      context: ..
+      dockerfile: docker/php-fpm/Dockerfile
+    volumes:
+      - ../app:/var/www/html
+      - php-vendor:/var/www/html/vendor
+      - ./php-fpm/php.local.ini:/usr/local/etc/php/conf.d/99-local.ini:ro
+    environment:
+      APP_ENV: local
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # ----------------------------------------------------------
+  # MySQL (ローカルDB — Cloud Run では Cloud SQL に置き換わる)
+  # ----------------------------------------------------------
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      TZ: Asia/Tokyo
+    ports:
+      - "${MYSQL_PORT:-13306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ../db/init:/docker-entrypoint-initdb.d:ro
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --character-set-client-handshake=FALSE
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ----------------------------------------------------------
+  # phpMyAdmin (開発ツール — --profile tools で起動)
+  # ----------------------------------------------------------
+  phpmyadmin:
+    image: phpmyadmin:5
+    ports:
+      - "${PMA_PORT:-8081}:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: root
+      PMA_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    profiles:
+      - tools
+
+volumes:
+  mysql-data:
+  php-vendor:

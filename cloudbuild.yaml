@@ -1,0 +1,93 @@
+# =============================================================================
+# Cloud Build パイプライン
+#
+# トリガー: main ブランチへの push
+# 処理: Docker ビルド → Artifact Registry push → Cloud Run デプロイ
+#
+# 必要な置換変数（トリガー設定 or コマンドラインで指定）:
+#   _ENV          : dev or prod
+#   _REGION       : asia-northeast1
+#   _PROJECT_NAME : rubese
+# =============================================================================
+
+steps:
+  # ================================================================
+  # Step 1: Nginx イメージビルド
+  # ================================================================
+  - id: build-nginx
+    name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_PROJECT_NAME}-${_ENV}-docker/nginx:${SHORT_SHA}'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_PROJECT_NAME}-${_ENV}-docker/nginx:latest'
+      - '-f'
+      - 'docker/nginx/Dockerfile'
+      - '.'
+
+  # ================================================================
+  # Step 2: PHP-FPM イメージビルド（Step 1 と並列実行）
+  # ================================================================
+  - id: build-php-fpm
+    name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_PROJECT_NAME}-${_ENV}-docker/php-fpm:${SHORT_SHA}'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_PROJECT_NAME}-${_ENV}-docker/php-fpm:latest'
+      - '-f'
+      - 'docker/php-fpm/Dockerfile'
+      - '.'
+
+  # ================================================================
+  # Step 3: Nginx イメージ push
+  # ================================================================
+  - id: push-nginx
+    name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '--all-tags'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_PROJECT_NAME}-${_ENV}-docker/nginx'
+    waitFor: ['build-nginx']
+
+  # ================================================================
+  # Step 4: PHP-FPM イメージ push（Step 3 と並列実行）
+  # ================================================================
+  - id: push-php-fpm
+    name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '--all-tags'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_PROJECT_NAME}-${_ENV}-docker/php-fpm'
+    waitFor: ['build-php-fpm']
+
+  # ================================================================
+  # Step 5: Cloud Run サービス更新
+  # ================================================================
+  - id: deploy
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        # Cloud Run のマルチコンテナはサービスYAML で更新
+        # Nginx (ingress) と PHP-FPM (sidecar) を同時に更新
+        gcloud run services update ${_PROJECT_NAME}-${_ENV}-app \
+          --region=${_REGION} \
+          --update-containers="nginx=image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_PROJECT_NAME}-${_ENV}-docker/nginx:${SHORT_SHA}" \
+          --update-containers="php-fpm=image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_PROJECT_NAME}-${_ENV}-docker/php-fpm:${SHORT_SHA}"
+    waitFor: ['push-nginx', 'push-php-fpm']
+
+substitutions:
+  _ENV: dev
+  _REGION: asia-northeast1
+  _PROJECT_NAME: rubese
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+images:
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_PROJECT_NAME}-${_ENV}-docker/nginx:${SHORT_SHA}'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_PROJECT_NAME}-${_ENV}-docker/php-fpm:${SHORT_SHA}'

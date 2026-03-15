@@ -1,0 +1,30 @@
+# 環境変数（秘密情報）
+.env
+docker/.env
+terraform/.env
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+crash.log
+
+# Docker
+docker/php-vendor/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# PHP
+vendor/
+
+# Claude
+.claude/
