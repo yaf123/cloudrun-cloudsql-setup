@@ -28,3 +28,7 @@ vendor/
 
 # Claude
 .claude/
+
+# ドキュメント（ローカル管理のみ、READMEは除外）
+*.md
+!README.md

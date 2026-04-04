@@ -24,9 +24,10 @@ resource "google_project_iam_member" "roles" {
 # Cloud Run サービス（マルチコンテナ: Nginx + PHP-FPM）
 # =============================================================================
 resource "google_cloud_run_v2_service" "app" {
-  name     = "${var.prefix}-app"
-  location = var.region
-  ingress  = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
+  name                 = "${var.prefix}-app"
+  location             = var.region
+  ingress              = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
+  invoker_iam_disabled = true  # 公開アクセスを許可（認証チェック無効化）
 
   template {
     service_account = google_service_account.run_sa.email
@@ -48,10 +49,6 @@ resource "google_cloud_run_v2_service" "app" {
     # 共有ボリューム（Nginx ↔ PHP-FPM 間の静的ファイル共有）
     volumes {
       name = "static-files"
-      empty_dir {
-        medium     = "MEMORY"
-        size_limit = "50Mi"
-      }
     }
 
     # -----------------------------------------------------------------
@@ -162,3 +159,6 @@ resource "google_cloud_run_v2_service" "app" {
 
   depends_on = [google_project_iam_member.roles]
 }
+
+# 公開アクセスは google_cloud_run_v2_service の invoker_iam_disabled = true で設定済み
+# アクセス制御は Cloud Armor（WAF + レート制限）が担当

@@ -1,0 +1,97 @@
+name: Deploy to Cloud Run (prod)
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  GCP_REGION: asia-northeast1
+  PROJECT_NAME: myapp
+  ENV: prod
+  NGINX_IMAGE: asia-northeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/myapp-prod-docker/nginx
+  PHP_FPM_IMAGE: asia-northeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/myapp-prod-docker/php-fpm
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # Workload Identity Federation に必要
+
+    steps:
+      # ========================================
+      # 1. チェックアウト
+      # ========================================
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ========================================
+      # 2. GCP認証 (Workload Identity Federation)
+      # ========================================
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      # ========================================
+      # 3. gcloud CLI セットアップ
+      # ========================================
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      # ========================================
+      # 4. Artifact Registry へ Docker 認証
+      # ========================================
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+
+      # ========================================
+      # 5. Docker イメージ ビルド (並列)
+      # ========================================
+      - name: Build Docker images
+        run: |
+          SHORT_SHA=${GITHUB_SHA::7}
+
+          # Nginx と PHP-FPM を並列ビルド
+          docker build \
+            -t ${{ env.NGINX_IMAGE }}:${SHORT_SHA} \
+            -t ${{ env.NGINX_IMAGE }}:latest \
+            -f docker/nginx/Dockerfile \
+            . &
+
+          docker build \
+            -t ${{ env.PHP_FPM_IMAGE }}:${SHORT_SHA} \
+            -t ${{ env.PHP_FPM_IMAGE }}:latest \
+            -f docker/php-fpm/Dockerfile \
+            . &
+
+          wait
+
+      # ========================================
+      # 6. Artifact Registry へ push
+      # ========================================
+      - name: Push Docker images
+        run: |
+          SHORT_SHA=${GITHUB_SHA::7}
+
+          docker push ${{ env.NGINX_IMAGE }}:${SHORT_SHA} &
+          docker push ${{ env.NGINX_IMAGE }}:latest &
+          docker push ${{ env.PHP_FPM_IMAGE }}:${SHORT_SHA} &
+          docker push ${{ env.PHP_FPM_IMAGE }}:latest &
+
+          wait
+
+      # ========================================
+      # 7. Cloud Run デプロイ
+      # ========================================
+      - name: Deploy to Cloud Run
+        run: |
+          SHORT_SHA=${GITHUB_SHA::7}
+
+          gcloud run services update ${{ env.PROJECT_NAME }}-${{ env.ENV }}-app \
+            --region=${{ env.GCP_REGION }} \
+            --update-containers="nginx=image=${{ env.NGINX_IMAGE }}:${SHORT_SHA}" \
+            --update-containers="php-fpm=image=${{ env.PHP_FPM_IMAGE }}:${SHORT_SHA}"

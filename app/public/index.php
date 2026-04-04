@@ -7,11 +7,12 @@ require_once __DIR__ . '/../vendor/autoload.php';
 use App\Shared\Config\Config;
 use App\Shared\Database\Connection;
 
+session_start();
+
 $config = Config::get();
 $dbStatus = Connection::check();
 
 // メモ帳デモ: 追加・削除処理
-$flashMessage = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $pdo = Connection::get();
@@ -20,22 +21,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'add' && !empty($_POST['content'])) {
             $stmt = $pdo->prepare('INSERT INTO notes (content) VALUES (?)');
             $stmt->execute([$_POST['content']]);
-            $flashMessage = 'メモを追加しました';
+            $_SESSION['flash'] = 'メモを追加しました';
         } elseif ($action === 'delete' && !empty($_POST['id'])) {
             $stmt = $pdo->prepare('DELETE FROM notes WHERE id = ?');
             $stmt->execute([(int)$_POST['id']]);
-            $flashMessage = 'メモを削除しました';
+            $_SESSION['flash'] = 'メモを削除しました';
         }
     } catch (Throwable $e) {
-        $flashMessage = 'エラー: ' . htmlspecialchars($e->getMessage());
+        $_SESSION['flash'] = 'エラー: ' . htmlspecialchars($e->getMessage());
     }
 
     // PRG パターン（POST後リダイレクトでリロード時の再送信を防止）
-    header('Location: /?msg=' . urlencode($flashMessage));
+    header('Location: /');
     exit;
 }
 
-$flashMessage = $_GET['msg'] ?? '';
+$flashMessage = $_SESSION['flash'] ?? '';
+unset($_SESSION['flash']);
 
 // メモ一覧取得
 $notes = [];
