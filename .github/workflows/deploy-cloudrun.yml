@@ -86,12 +86,26 @@ jobs:
 
       # ========================================
       # 7. Cloud Run デプロイ
+      #    既存サービスの YAML をエクスポートし、
+      #    イメージタグだけ差し替えて replace する
       # ========================================
       - name: Deploy to Cloud Run
         run: |
           SHORT_SHA=${GITHUB_SHA::7}
+          SERVICE_NAME="${{ env.PROJECT_NAME }}-${{ env.ENV }}-app"
 
-          gcloud run services update ${{ env.PROJECT_NAME }}-${{ env.ENV }}-app \
+          # 現在のサービス定義をエクスポート
+          gcloud run services describe "${SERVICE_NAME}" \
             --region=${{ env.GCP_REGION }} \
-            --update-containers="nginx=image=${{ env.NGINX_IMAGE }}:${SHORT_SHA}" \
-            --update-containers="php-fpm=image=${{ env.PHP_FPM_IMAGE }}:${SHORT_SHA}"
+            --format=export > service.yaml
+
+          # Nginx / PHP-FPM のイメージタグを更新
+          sed -i "s|image: .*/nginx:.*|image: ${{ env.NGINX_IMAGE }}:${SHORT_SHA}|" service.yaml
+          sed -i "s|image: .*/php-fpm:.*|image: ${{ env.PHP_FPM_IMAGE }}:${SHORT_SHA}|" service.yaml
+
+          echo "=== Updated service.yaml ==="
+          grep 'image:' service.yaml
+
+          # サービスを更新
+          gcloud run services replace service.yaml \
+            --region=${{ env.GCP_REGION }}
