@@ -88,8 +88,10 @@ jobs:
 
       # ========================================
       # 7. Cloud Run デプロイ
-      #    --update-containers でイメージのみ更新
-      #    （ボリューム等の既存設定は変更しない）
+      #    既存サービスの YAML をエクスポートし、
+      #    イメージタグだけ差し替えて replace する
+      #    ※ボリューム定義は除去（volume_type 必須エラー回避）
+      #     ボリュームは Terraform 管理、replace では変更しない
       # ========================================
       - name: Deploy to Cloud Run
         run: |
@@ -98,12 +100,36 @@ jobs:
 
           # サービスが存在するか確認（初回は Terraform で作成するため）
           if ! gcloud run services describe "${SERVICE_NAME}" \
-            --region=${{ env.GCP_REGION }} > /dev/null 2>&1; then
+            --region=${{ env.GCP_REGION }} \
+            --format=export > service.yaml 2>/dev/null; then
             echo "::warning::Service ${SERVICE_NAME} does not exist yet. Skipping deploy (create it with Terraform first)."
             exit 0
           fi
 
-          gcloud run services update "${SERVICE_NAME}" \
-            --region=${{ env.GCP_REGION }} \
-            --update-containers="nginx=image=${{ env.NGINX_IMAGE }}:${SHORT_SHA}" \
-            --update-containers="php-fpm=image=${{ env.PHP_FPM_IMAGE }}:${SHORT_SHA}"
+          # イメージタグ更新 & ボリューム定義除去（Pythonで安全に操作）
+          python3 -c "
+          import yaml, sys
+          with open('service.yaml') as f:
+              svc = yaml.safe_load(f)
+          spec = svc['spec']['template']['spec']
+          # イメージタグ更新
+          for c in spec.get('containers', []):
+              img = c.get('image', '')
+              if '/nginx:' in img or '/nginx@' in img:
+                  c['image'] = '${{ env.NGINX_IMAGE }}:${SHORT_SHA}'
+              elif '/php-fpm:' in img or '/php-fpm@' in img:
+                  c['image'] = '${{ env.PHP_FPM_IMAGE }}:${SHORT_SHA}'
+              # volumeMounts 除去
+              c.pop('volumeMounts', None)
+          # volumes 除去
+          spec.pop('volumes', None)
+          with open('service.yaml', 'w') as f:
+              yaml.dump(svc, f, default_flow_style=False, allow_unicode=True)
+          "
+
+          echo "=== Updated service.yaml ==="
+          cat service.yaml
+
+          # サービスを更新
+          gcloud run services replace service.yaml \
+            --region=${{ env.GCP_REGION }}
