@@ -1,4 +1,4 @@
-name: Deploy to Cloud Run (prod)
+name: Deploy to Cloud Run (dev)
 
 on:
   push:
@@ -8,9 +8,9 @@ on:
 env:
   GCP_REGION: asia-northeast1
   PROJECT_NAME: myapp
-  ENV: prod
-  NGINX_IMAGE: asia-northeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/myapp-prod-docker/nginx
-  PHP_FPM_IMAGE: asia-northeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/myapp-prod-docker/php-fpm
+  ENV: dev
+  NGINX_IMAGE: asia-northeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/myapp-dev-docker/nginx
+  PHP_FPM_IMAGE: asia-northeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/myapp-dev-docker/php-fpm
 
 jobs:
   deploy:
@@ -94,10 +94,13 @@ jobs:
           SHORT_SHA=${GITHUB_SHA::7}
           SERVICE_NAME="${{ env.PROJECT_NAME }}-${{ env.ENV }}-app"
 
-          # 現在のサービス定義をエクスポート
-          gcloud run services describe "${SERVICE_NAME}" \
+          # サービスが存在するか確認（初回は Terraform で作成するため）
+          if ! gcloud run services describe "${SERVICE_NAME}" \
             --region=${{ env.GCP_REGION }} \
-            --format=export > service.yaml
+            --format=export > service.yaml 2>/dev/null; then
+            echo "::warning::Service ${SERVICE_NAME} does not exist yet. Skipping deploy (create it with Terraform first)."
+            exit 0
+          fi
 
           # Nginx / PHP-FPM のイメージタグを更新
           sed -i "s|image: .*/nginx:.*|image: ${{ env.NGINX_IMAGE }}:${SHORT_SHA}|" service.yaml
