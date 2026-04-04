@@ -106,8 +106,12 @@ jobs:
           sed -i "s|image: .*/nginx:.*|image: ${{ env.NGINX_IMAGE }}:${SHORT_SHA}|" service.yaml
           sed -i "s|image: .*/php-fpm:.*|image: ${{ env.PHP_FPM_IMAGE }}:${SHORT_SHA}|" service.yaml
 
+          # エクスポートYAMLでボリュームタイプが欠落する問題を修正
+          # "- name: static-files" の次行に emptyDir がなければ追加
+          sed -i '/- name: static-files/{n;/emptyDir/!s/^/        emptyDir: {}\n/}' service.yaml
+
           echo "=== Updated service.yaml ==="
-          grep 'image:' service.yaml
+          grep -A2 'static-files\|image:' service.yaml
 
           # サービスを更新
           gcloud run services replace service.yaml \
