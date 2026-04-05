@@ -27,6 +27,7 @@ resource "google_cloud_run_v2_service" "app" {
   name                 = "${var.prefix}-app"
   location             = var.region
   ingress              = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
+  deletion_protection  = false
   invoker_iam_disabled = true  # 公開アクセスを許可（認証チェック無効化）
 
   template {
